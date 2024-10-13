@@ -27,16 +27,48 @@
             height: 100%;
             object-fit: cover;
         }
-
-        .fa-close {
+        .image-info {
             position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7); /* Màu nền mờ */
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .image-item:hover .image-info {
+            opacity: 1; /* Hiện thông tin khi hover */
+        }
+        .fa-close, .fa-youtube-play, .fa-arrow-circle-up {
+            position: absolute;
+            color: white;
+            cursor: pointer;
+        }
+        .fa-close {
             top: 5px;
             right: 5px;
+            padding: 5px;
             background-color: red;
-            color: white;
-            border: none;
-            padding: 5px 5px;
-            cursor: pointer;
+        }
+        .fa-youtube-play {
+            bottom: 0px;
+            left: 0px;
+            padding: 4px;
+            background-color: red;
+        }
+        .fa-arrow-circle-up {
+            bottom: 22px;
+            left: 0px;
+            padding: 5px;
+            background-color: green;
         }
     </style>
 </head>
@@ -73,7 +105,7 @@
                 <div class="w3-section w3-bottombar w3-padding-16">
                     <span class="w3-margin-right">Function:</span>
                     <button class="w3-button w3-teal" onclick="importFile()"><i class="fa fa-download w3-margin-right"></i>Import CSV</button>
-                    <button class="w3-button w3-teal"><i class="fa fa-upload w3-margin-right"></i>Export CSV</button>
+                    <button class="w3-button w3-teal" onclick="exportCSV()"><i class="fa fa-upload w3-margin-right"></i>Export CSV</button>
                     <button class="w3-button w3-teal" onclick="reset()"><i class="fa fa-refresh w3-margin-right"></i>Reset</button>
                 </div>
             </div>
@@ -97,8 +129,9 @@
             document.getElementById("myOverlay").style.display = "none";
         }
 
-        // Script load file CSV
+        // Script Load file CSV
         let images = [];
+        let name_csv = 'new.csv';
 
         function importFile() {
             const input = document.getElementById('csvFile');
@@ -106,6 +139,8 @@
 
             input.onchange = function(event) {
                 const file = event.target.files[0];
+                name_csv = file.name;
+
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
@@ -121,17 +156,18 @@
             const lines = contents.split('\n');
             images = lines.filter(line => line.trim() !== '').map(line => {
                 const [folder, frame] = line.trim().split(',');
-                const parts = folder.split('_');
-                // console.log(`D:\\AIC\\keyframeaic\\${parts[0]}\\${parts[1]}\\frame_${frame}.jpg`);
+                const parts = folder.split('_')
                 return {
                     path: `D:\\AIC\\keyframeaic\\${parts[0]}\\${parts[1]}\\frame_${frame}.jpg`,
-                    folder: folder,
+                    folder: parts[0],
+                    index: parts[1],
                     frame: frame
                 };
             });
             displayImages();
         }
 
+        // Scripts display Images
         function displayImages() {
             const container = document.getElementById('imageContainer');
             container.innerHTML = '';
@@ -140,11 +176,20 @@
                 div.className = 'w3-third w3-container w3-margin-bottom image-item';
                 div.innerHTML = `
                     <img src="${imagePath.path}" alt="Image ${index}" style="width:100%" class="w3-hover-opacity">
+                    <div class="image-info">
+                        <p><b>${index}::${imagePath.folder}_${imagePath.index}_${imagePath.frame}</b></p>
+                    </div>
                     <div class="w3-container w3-white">
                         <p><b>Image ${index}</b></p>
-                        <p>Click to view details.</p>
+                        <p>Not found.</p>
+                        <!--
+                        <button class="w3-button w3-blue" onclick="viewDetails(${index})">View Details</button>
+                        <button class="w3-button w3-red" onclick="deleteImage(${index})">Delete</button>
+                        -->
                     </div>
                     <i class="fa fa-close" onclick="deleteImage(${index})"></i>
+                    <i class="fa fa-arrow-circle-up" onclick="upTop(${index})"></i>
+                    <i class="fa fa-youtube-play" onclick="youtubePlay(${index})"></i>
                 `;
                 container.appendChild(div);
             });
@@ -158,6 +203,44 @@
                         images.splice(evt.newIndex, 0, movedItem);
                     }
                 });
+            }
+        }
+
+        // Scripts Export CSV
+        function exportCSV() {
+            const csvRows = [];
+            images.forEach(image => {
+                const row = `${image.folder}_${image.index},${image.frame}`;
+                csvRows.push(row);
+            });
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `${name_csv}`);
+            a.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        // Scripts function button
+        function viewDetails(index) {
+            const image = images[index];
+            alert(`Details of Image ${index}:\nPath: ${image.path}\nFolder: ${image.folder}\nIndex: ${image.index}\nFrame: ${image.frame}`);
+        }
+
+        function youtubePlay(index) {
+            // Logic for YouTube play can be added here
+        }
+
+        function upTop(index) {
+            if (index > 0) {
+                const imageToMove = images.splice(index, 1)[0];
+                images.unshift(imageToMove);
+                displayImages();
             }
         }
 
