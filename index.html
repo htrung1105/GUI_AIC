@@ -33,7 +33,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.7); /* Màu nền mờ */
+            background-color: rgba(0, 0, 0, 0.7);
             color: white;
             display: flex;
             flex-direction: column;
@@ -45,7 +45,7 @@
             transition: opacity 0.3s;
         }
         .image-item:hover .image-info {
-            opacity: 1; /* Hiện thông tin khi hover */
+            opacity: 1;
         }
         .fa-close, .fa-youtube-play, .fa-arrow-circle-up {
             position: absolute;
@@ -72,7 +72,7 @@
         }
     </style>
 </head>
-<body class="w3-light-grey w3-content" style="max-width:1600px">
+<body class="w3-light-grey w3-content" style="max-width:1600px" onload="getJSON()">
     <input type="file" id="csvFile" accept=".csv" style="display: none;">
 
     <!-- Sidebar/menu -->
@@ -129,6 +129,35 @@
             document.getElementById("myOverlay").style.display = "none";
         }
 
+        // Script Get values in JSON
+        let values_json = [];
+
+        function getJSON() {
+            const file = 'D:\\AIC\\vector\\FAISS_index.json';
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const contents = e.target.result;
+                    processJSON(contents);
+                };
+                reader.readAsText(file);
+            } console.log(values_json);
+        }
+
+        function processJSON(contents) {
+            const data = JSON.parse(contents);
+            values_json = Object.values(data).map(item => {
+                return {
+                    path: `D:\\AIC\\keyframeaic\\${item.L_index}\\${item.V_index}\\frame_${item.frame_ids}.jpg`,
+                    folder: item.L_index,
+                    index: item.V_index,
+                    frame: item.frame_ids,
+                    youtubeLink: `https://www.youtube.com/embed/${item.yt_id}?start=${item.pts_time}`
+                };
+            });
+        }
+
         // Script Load file CSV
         let images = [];
         let name_csv = 'new.csv';
@@ -156,12 +185,18 @@
             const lines = contents.split('\n');
             images = lines.filter(line => line.trim() !== '').map(line => {
                 const [folder, frame] = line.trim().split(',');
-                const parts = folder.split('_')
+                const parts = folder.split('_');
+                const imagePath = `D:\\AIC\\keyframeaic\\${parts[0]}\\${parts[1]}\\frame_${frame}.jpg`;
+
+                // Tìm youtubeLink trong values_json
+                const found = values_json.find(item => item.path === imagePath);
+
                 return {
-                    path: `D:\\AIC\\keyframeaic\\${parts[0]}\\${parts[1]}\\frame_${frame}.jpg`,
+                    path: imagePath,
                     folder: parts[0],
                     index: parts[1],
-                    frame: frame
+                    frame: frame,
+                    youtubeLink: found ? found.youtubeLink : null // Cập nhật youtubeLink nếu tìm thấy
                 };
             });
             displayImages();
@@ -182,10 +217,6 @@
                     <div class="w3-container w3-white">
                         <p><b>Image ${index}</b></p>
                         <p>Not found!</p>
-                        <!--
-                        <button class="w3-button w3-blue" onclick="viewDetails(${index})">View Details</button>
-                        <button class="w3-button w3-red" onclick="deleteImage(${index})">Delete</button>
-                        -->
                     </div>
                     <i class="fa fa-close" onclick="deleteImage(${index})"></i>
                     <i class="fa fa-arrow-circle-up" onclick="upTop(${index})"></i>
@@ -193,17 +224,6 @@
                 `;
                 container.appendChild(div);
             });
-
-            // Initialize Sortable for container
-            if (typeof Sortable !== 'undefined') {
-                Sortable.create(container, {
-                    animation: 150,
-                    onEnd: (evt) => {
-                        const movedItem = images.splice(evt.oldIndex, 1)[0];
-                        images.splice(evt.newIndex, 0, movedItem);
-                    }
-                });
-            }
         }
 
         // Scripts Export CSV
@@ -233,7 +253,12 @@
         }
 
         function youtubePlay(index) {
-            // Logic for YouTube play can be added here
+            const image = images[index];
+            if (image.youtubeLink) {
+                window.open(image.youtubeLink, '_blank');
+            } else {
+                alert('No YouTube link available for this image.');
+            }
         }
 
         function upTop(index) {
