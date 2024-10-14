@@ -72,7 +72,7 @@
         }
     </style>
 </head>
-<body class="w3-light-grey w3-content" style="max-width:1600px" onload="getJSON()">
+<body class="w3-light-grey w3-content" style="max-width:1600px">
     <input type="file" id="csvFile" accept=".csv" style="display: none;">
 
     <!-- Sidebar/menu -->
@@ -118,6 +118,8 @@
     </div>
 
     <script>
+        const { ipcRenderer } = require('electron');
+
         // Script to open and close sidebar
         function w3_open() {
             document.getElementById("mySidebar").style.display = "block";
@@ -127,35 +129,6 @@
         function w3_close() {
             document.getElementById("mySidebar").style.display = "none";
             document.getElementById("myOverlay").style.display = "none";
-        }
-
-        // Script Get values in JSON
-        let values_json = [];
-
-        function getJSON() {
-            const file = 'D:\\AIC\\vector\\FAISS_index.json';
-
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const contents = e.target.result;
-                    processJSON(contents);
-                };
-                reader.readAsText(file);
-            } console.log(values_json);
-        }
-
-        function processJSON(contents) {
-            const data = JSON.parse(contents);
-            values_json = Object.values(data).map(item => {
-                return {
-                    path: `D:\\AIC\\keyframeaic\\${item.L_index}\\${item.V_index}\\frame_${item.frame_ids}.jpg`,
-                    folder: item.L_index,
-                    index: item.V_index,
-                    frame: item.frame_ids,
-                    youtubeLink: `https://www.youtube.com/embed/${item.yt_id}?start=${item.pts_time}`
-                };
-            });
         }
 
         // Script Load file CSV
@@ -184,22 +157,36 @@
         function processCSV(contents) {
             const lines = contents.split('\n');
             images = lines.filter(line => line.trim() !== '').map(line => {
-                const [folder, frame] = line.trim().split(',');
+                const [folder, frame, youtubeLink] = line.trim().split(',');
                 const parts = folder.split('_');
                 const imagePath = `D:\\AIC\\keyframeaic\\${parts[0]}\\${parts[1]}\\frame_${frame}.jpg`;
-
-                // Tìm youtubeLink trong values_json
-                const found = values_json.find(item => item.path === imagePath);
 
                 return {
                     path: imagePath,
                     folder: parts[0],
                     index: parts[1],
                     frame: frame,
-                    youtubeLink: found ? found.youtubeLink : null // Cập nhật youtubeLink nếu tìm thấy
+                    youtubeLink: youtubeLink
                 };
             });
             displayImages();
+        }
+
+        // Nhận tệp CSV từ main.js
+        ipcRenderer.on('new-csv-file', (event, filePath) => {
+            loadCSV(filePath);
+        });
+
+        function loadCSV(filePath) {
+            const fs = require('fs');
+
+            fs.readFile(filePath, 'utf8', (err, data) => {
+                if (err) {
+                    console.error('Error reading CSV file:', err);
+                    return;
+                }
+                processCSV(data);
+            });
         }
 
         // Scripts display Images
