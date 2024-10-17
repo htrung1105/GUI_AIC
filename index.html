@@ -185,6 +185,12 @@
                 <input type="text" id="answerInput" placeholder="Nhập answer">
             </div>
         </div>
+
+        <!-- Status Display -->
+        <div class="w3-container">
+            <h4>Trạng thái:</h4>
+            <div id="statusDisplay" style="font-weight: bold;"></div>
+        </div>
     </nav>
 
     <!-- Overlay effect when opening sidebar on small screens -->
@@ -412,7 +418,7 @@
             }
 
             navigator.clipboard.writeText(textToCopy).then(function() {
-                alert('Copied to clipboard: ' + textToCopy);
+                document.getElementById('statusDisplay').textContent = 'Copied to clipboard: ' + textToCopy;
             }).catch(function(err) {
                 console.log('Could not copy text: ', err);
             });
