@@ -47,7 +47,7 @@
         .image-item:hover .image-info {
             opacity: 1;
         }
-        .fa-close, .fa-youtube-play, .fa-arrow-circle-up {
+        .fa-close, .fa-youtube-play, .fa-arrow-circle-up, .fa-expand {
             position: absolute;
             color: white;
             cursor: pointer;
@@ -60,19 +60,103 @@
         }
         .fa-youtube-play {
             bottom: 0px;
-            left: 0px;
+            left: 5px;
             padding: 4px;
             background-color: red;
         }
         .fa-arrow-circle-up {
-            bottom: 22px;
-            left: 0px;
+            bottom: 28px;
+            left: 5px;
             padding: 5px;
             background-color: green;
         }
+        .fa-expand {
+            top: 5px;
+            left: 5px;
+            padding: 5px;
+            background-color: blue;
+        }
+        .fullscreen-image {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 1001;
+            justify-content: center;
+            align-items: center;
+        }
+        .fullscreen-image img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        .fullscreen-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popup YouTube</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            position: relative;
+            width: 70vw; 
+            height: 80vh;
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%; 
+        }
     </style>
 </head>
-<body class="w3-light-grey w3-content" style="max-width:1600px">
+<div class="modal" id="videoModal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <iframe id="videoFrame" src="" frameborder="0" allowfullscreen></iframe>
+    </div>
+</div>
+<body class="w3-light-grey w3-content" style="max-width:1600px", onload="auto_import()">
     <input type="file" id="csvFile" accept=".csv" style="display: none;">
 
     <!-- Sidebar/menu -->
@@ -87,6 +171,19 @@
             <a href="#portfolio" onclick="w3_close()" class="w3-bar-item w3-button w3-padding w3"><i class="fa fa-th-large fa-fw w3-margin-right"></i>MENU</a>
             <a href="#about" onclick="w3_close()" class="w3-bar-item w3-button w3-padding"><i class="fa fa-user fa-fw w3-margin-right"></i>ABOUT</a>
             <a href="#contact" onclick="w3_close()" class="w3-bar-item w3-button w3-padding"><i class="fa fa-envelope fa-fw w3-margin-right"></i>CONTACT</a>
+        </div>
+
+        <!-- Phần chọn KIS hoặc QA -->
+        <div class="w3-container">
+            <label for="infoSelect">Loại truy vấn:</label>
+            <select id="infoSelect" onchange="toggleAnswerInput()">
+                <option value="KIS">KIS</option>
+                <option value="QA">QA</option>
+            </select>
+            <div id="answerContainer" style="display: none;">
+                <label for="answerInput">Nhập answer:</label>
+                <input type="text" id="answerInput" placeholder="Nhập answer">
+            </div>
         </div>
     </nav>
 
@@ -117,10 +214,43 @@
         <!-- End page content -->
     </div>
 
-    <script>
-        const { ipcRenderer } = require('electron');
+    <div id="fullscreenContainer" class="fullscreen-image">
+        <span class="fullscreen-close" onclick="closeFullscreen()">&times;</span>
+        <img id="fullscreenImage" src="" alt="Fullscreen Image">
+    </div>
 
-        // Script to open and close sidebar
+    <script>
+        const fs = require('fs');
+        const path = require('path');
+
+        let images = [];
+        function auto_import(){
+            let folderPath = './uploads'
+            fs.readdir(folderPath, (err, files) => {
+                if (err) return console.error(err);
+                const csvFiles = files
+                .filter(file => path.extname(file) === '.csv')
+                .map(file => ({
+                    name: file,
+                    time: fs.statSync(path.join(folderPath, file)).birthtime
+                }));
+                const earliestFile = csvFiles.reduce((prev, curr) => (prev.time < curr.time) ? prev : curr);
+                loadImagesFromPath(path.join(folderPath, earliestFile.name));
+            });
+        }
+
+        function loadImagesFromPath(filePath) {
+            fs.readFile(filePath, 'utf8', (err, data) => {
+                if (err) {
+                    console.error('Error reading CSV file:', err);
+                    return;
+                }
+                processCSV(data)
+                console.log(data);
+            });
+        }
+
+        // // Script to open and close sidebar
         function w3_open() {
             document.getElementById("mySidebar").style.display = "block";
             document.getElementById("myOverlay").style.display = "block";
@@ -131,18 +261,19 @@
             document.getElementById("myOverlay").style.display = "none";
         }
 
+        // let images = [];
+
         // Script Load file CSV
-        let images = [];
         let name_csv = 'new.csv';
 
         function importFile() {
             const input = document.getElementById('csvFile');
+            input.value = '';
             input.click();
 
             input.onchange = function(event) {
                 const file = event.target.files[0];
                 name_csv = file.name;
-
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
@@ -157,36 +288,20 @@
         function processCSV(contents) {
             const lines = contents.split('\n');
             images = lines.filter(line => line.trim() !== '').map(line => {
-                const [folder, frame, youtubeLink] = line.trim().split(',');
+                const [folder, frame, youtubeLink, pts_time] = line.trim().split(',');
                 const parts = folder.split('_');
-                const imagePath = `D:\\AIC\\keyframeaic\\${parts[0]}\\${parts[1]}\\frame_${frame}.jpg`;
+                const imagePath = `./keyframeaic/${parts[0]}/${parts[1]}/frame_${frame}.jpg`;
 
                 return {
                     path: imagePath,
                     folder: parts[0],
                     index: parts[1],
                     frame: frame,
-                    youtubeLink: youtubeLink
+                    youtubeLink: youtubeLink,
+                    pts_time: pts_time
                 };
             });
             displayImages();
-        }
-
-        // Nhận tệp CSV từ main.js
-        ipcRenderer.on('new-csv-file', (event, filePath) => {
-            loadCSV(filePath);
-        });
-
-        function loadCSV(filePath) {
-            const fs = require('fs');
-
-            fs.readFile(filePath, 'utf8', (err, data) => {
-                if (err) {
-                    console.error('Error reading CSV file:', err);
-                    return;
-                }
-                processCSV(data);
-            });
         }
 
         // Scripts display Images
@@ -206,12 +321,31 @@
                         <p>Not found!</p>
                     </div>
                     <i class="fa fa-close" onclick="deleteImage(${index})"></i>
-                    <i class="fa fa-arrow-circle-up" onclick="upTop(${index})"></i>
+                    <i class="fa fa-arrow-circle-up" onclick="submit(${index})"></i>
                     <i class="fa fa-youtube-play" onclick="youtubePlay(${index})"></i>
+                    <i class="fa fa-expand" onclick="openFullscreen('${imagePath.path}')"></i>
                 `;
                 container.appendChild(div);
             });
         }
+
+        function openFullscreen(imagePath) {
+            const fullscreenContainer = document.getElementById('fullscreenContainer');
+            const fullscreenImage = document.getElementById('fullscreenImage');
+            fullscreenImage.src = imagePath;
+            fullscreenContainer.style.display = 'flex';
+        }
+
+        function closeFullscreen() {
+            const fullscreenContainer = document.getElementById('fullscreenContainer');
+            fullscreenContainer.style.display = 'none';
+        }
+
+        document.getElementById('fullscreenContainer').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeFullscreen();
+            }
+        });
 
         // Scripts Export CSV
         function exportCSV() {
@@ -242,18 +376,46 @@
         function youtubePlay(index) {
             const image = images[index];
             if (image.youtubeLink) {
-                window.open(image.youtubeLink, '_blank');
+                const autoplayLink = image.youtubeLink + '?autoplay=1';
+                document.getElementById('videoFrame').src = autoplayLink;
+                document.getElementById('videoModal').style.display = 'flex';
             } else {
                 alert('No YouTube link available for this image.');
             }
         }
 
-        function upTop(index) {
-            if (index > 0) {
-                const imageToMove = images.splice(index, 1)[0];
-                images.unshift(imageToMove);
-                displayImages();
+        function toggleAnswerInput() {
+            const selectElement = document.getElementById('infoSelect');
+            const answerContainer = document.getElementById('answerContainer');
+            if (selectElement.value === 'QA') {
+                answerContainer.style.display = 'block';
+            } else {
+                answerContainer.style.display = 'none';
             }
+        }
+
+        function submit(index) {
+            const image = images[index];
+            let textToCopy = `${image.folder}_${image.index}_${Math.round(image.pts_time)}`;
+
+            // Lấy giá trị từ hộp chọn và ô nhập
+            const infoSelect = document.getElementById('infoSelect').value;
+            const answerInput = document.getElementById('answerInput').value;
+
+            // Kiểm tra điều kiện và thực hiện hành động tương ứng
+            if (infoSelect === 'QA' && answerInput) {
+                // Thực hiện hành động với thông tin QA và câu trả lời
+                textToCopy = `${answerInput}-${image.folder}_${image.index}-${Math.round(image.pts_time)}`;
+            } else {
+                // Thực hiện hành động với thông tin KIS
+                textToCopy = `\"mediaItemName\": \"${image.folder}_${image.index}\",\n\"start\": ${Math.round(image.pts_time)},\n\"end\": ${Math.round(image.pts_time)}`;
+            }
+
+            navigator.clipboard.writeText(textToCopy).then(function() {
+                alert('Copied to clipboard: ' + textToCopy);
+            }).catch(function(err) {
+                console.log('Could not copy text: ', err);
+            });
         }
 
         function deleteImage(index) {
@@ -265,6 +427,16 @@
             images = [];
             displayImages();
         }
+        function closeModal() {
+            document.getElementById('videoModal').style.display = 'none';
+            document.getElementById('videoFrame').src = '';
+        }
+        window.onclick = function(event) {
+        const modal = document.getElementById('videoModal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
     </script>
 
 </body>

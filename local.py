@@ -21,7 +21,7 @@ def upload_file():
 
         # Mở cửa sổ CMD mới và chạy npm start
         try:
-            subprocess.Popen(['start', 'cmd', '/K', 'npm', 'start'], shell=True)
+            subprocess.Popen(['start', 'cmd', '/C', 'npm', 'start'], shell=True)
             return f'File {file.filename} uploaded successfully and npm started', 200
         except Exception as e:
             return f'Error occurred while starting npm: {e}', 500
