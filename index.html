@@ -411,7 +411,7 @@
             // Kiểm tra điều kiện và thực hiện hành động tương ứng
             if (infoSelect === 'QA' && answerInput) {
                 // Thực hiện hành động với thông tin QA và câu trả lời
-                textToCopy = `${answerInput}-${image.folder}_${image.index}-${Math.round(image.pts_time)}`;
+                textToCopy = `\"text\": ${answerInput}-${image.folder}_${image.index}-${Math.round(image.pts_time)}`;
             } else {
                 // Thực hiện hành động với thông tin KIS
                 textToCopy = `\"mediaItemName\": \"${image.folder}_${image.index}\",\n\"start\": ${Math.round(image.pts_time)},\n\"end\": ${Math.round(image.pts_time)}`;
